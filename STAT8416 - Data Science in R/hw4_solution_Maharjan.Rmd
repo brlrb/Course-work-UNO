@@ -1,0 +1,473 @@
+---
+title: "STAT 4410/8416 Homework 4"
+author: "Maharjan Bikram"
+date: "Due on Nov 8, 2019"
+output:
+  pdf_document: default
+  html_document: default
+  word_document: default
+---
+
+```{r setup, include=FALSE}
+library(knitr)
+opts_chunk$set(fig.align='center', dpi=100, message=FALSE, warning=FALSE, cache=TRUE)
+output <- opts_knit$get("rmarkdown.pandoc.to")
+if(!is.null(output)) {
+if (output=="html") opts_chunk$set(out.width = '400px') else
+  opts_chunk$set(out.width='.6\\linewidth')
+}
+```
+
+1. **Exploring XML data;** In this problem we will read the xml data. For this we will obtain a xml data called olive oils from the link http://www.ggobi.org/book/data/olive.xml. Please follow the directions in each step and provide your codes and output.
+
+```{r}
+library(XML)
+library(stringr)
+
+
+```
+
+a. Parse the xml data from the above link and store in a object called `olive`. Obtain the root of the xml file and display its name.
+
+```{r}
+
+olive <- 'http://www.ggobi.org/book/data/olive.xml' 
+
+olive <- xmlParse(olive)
+
+root <- xmlRoot(olive)
+
+rootNamePath <- "//ggobidata/data"
+rootName <- as.vector(unlist(xpathApply(olive, rootNamePath, xmlAttrs)))
+
+rootName
+
+```
+
+
+b. Examine the actual file by going to the link above and identify the path of categorical variables in the xml tree. Use that path to obtain the categorical variable names. Please keep the names, not nick names and store them in `cvNames`. Display `cvNames`.
+
+```{r}
+
+olive <- 'http://www.ggobi.org/book/data/olive.xml' 
+
+olive <- xmlParse(olive)
+
+cvPath <- "//ggobidata/data/variables/categoricalvariable"
+
+cvList <- xpathApply(olive, cvPath, xmlAttrs)
+cvNames <- as.vector(unlist(cvList))
+cvNames <- strsplit(gsub('\\n','',cvNames), split=" ")
+cvNames <- c(cvNames[[1]][1] ,cvNames[[3]][1])
+cvNames
+
+```
+
+c. Now examine the file by going to the link and identify the path of real variables in the xml tree. Use that path to obtain the real variable names. Please keep the names, not nick names and store them in `rvNames`. Display `rvNames`.
+
+
+```{r}
+
+olive <- 'http://www.ggobi.org/book/data/olive.xml' 
+
+
+
+olive <- xmlParse(olive)
+
+rvPath <- "//ggobidata/data/variables/realvariable"
+
+rvList <- xpathApply(olive, rvPath, xmlAttrs)
+rvNames <- as.vector(unlist(rvList))
+rvNames <- strsplit(gsub('\\n','',rvNames), split=" ")
+rvNames <- c(rvNames[[1]][1] ,rvNames[[3]][1] ,rvNames[[5]][1] ,rvNames[[7]][1] ,rvNames[[9]][1] ,rvNames[[11]][1] ,rvNames[[13]][1] ,rvNames[[15]][1])
+
+rvNames
+
+```
+
+
+d. Notice the path for the data in xml file. Use that path to obtain the data and store the data in a data frame called `oliveDat`. Change the column names as you have obtained the column names. Display some data.
+
+** I tried my best to make this work but for some reason it does not work, so I did `eval=FALSE` **
+
+```{r, eval=FALSE}
+
+
+
+olive <- 'http://www.ggobi.org/book/data/olive.xml' 
+
+olive <- xmlParse(olive)
+
+oliveDatPath <- "//ggobidata/data/records/record"
+
+datValue <- xpathApply(olive, oliveDatPath, xmlValue)
+datValue <- strsplit(gsub('\\n','',datValue), split="  ")
+head(datValue,2)
+
+oliveDat <- do.call(rbind.data.frame, datValue)
+names(oliveDat) <- c(cvNames, rvNames)
+head(oliveDat)
+
+
+
+```
+
+
+e. Generate a plot of your choice to display any feature of `oliveDat` data. Notice that the column names are different fatty acids. The values are % of fatty acids found in the Italian olive oils coming from different regions and areas.
+
+```{r, eval=FALSE}
+ggplot(oliveDat, aes(x=region, y=palmitic))+
+  geom_point()+
+  xlab("Region")+ 
+  ylab("palmitic")
+  
+```
+
+
+
+f. Explain what these two lines of codes are doing.
+
+```{r, eval=FALSE}
+r <- xmlRoot(olive)
+xmlSApply(r[[1]][[2]], xmlGetAttr, "name")
+```
+
+```{r, eval=FALSE}
+The above two lines of code getting the attribute of each Of the children of an XMLNode on the sub node. 
+
+The first line `r <- xmlRoot(olive)` gets the Top-Level XML Node.
+
+The second line `xmlSApply(r[[1]][[2]], xmlGetAttr, "name")` is iterating over each attribute of the sub-child of `variables` and grabing the name tag of the attribute and its value. The above code displays the attribute name and the value of corrosponding name on this path `[[1]][[2]]` 
+
+```
+
+
+
+2. **Working with date-time data;** The object `myDate` contains the date and time when this question was provided to you. Based on this object answer the following questions.
+```{r}
+library(lubridate)
+
+myDate <- "2019-10-30 19:50:21"
+```
+
+a. Convert `myDate` into a date-time object with Chicago time zone. Display the result.
+```{r}
+
+myDateChicagoTZ <- as.POSIXct(myDate, tz="America/Chicago")  
+
+myDateChicagoTZ
+```
+
+
+b. Write your codes so that it displays the week day of `myDate`.
+```{r}
+
+weekdays(ymd_hms(myDate))
+
+```
+
+
+c. What weekday is it after exactly 100 years from `myDate`? Show your codes and the answer.
+```{r}
+
+weekdays(ymd_hms(myDate) + years(100))
+
+```
+
+d. Add one month with myDate and display the resulting date time. Explain why the time zone has changed even though you did not ask for time zone change.
+```{r}
+
+ymd_hms(myDate) + months(1)
+
+
+```
+
+In `R`, `UTC` is the common representation of (date)time, and things like timezones are defined in terms of `UTC`. That is why `R` automatically added `UTC` even though we did not explicitly added it.
+
+
+
+e. Suppose this homework is due on November 8, 2019 by 11.59PM. Compute and display how many minutes you got to complete this homework?
+```{r}
+
+
+homeworkDueDate <- "2019-11-08 11:59:00"
+
+difftime(homeworkDueDate, myDate, units="mins")
+
+```
+
+3. **Data Wrangling and Dates** In this problem, we will be using the `mdsr` and `Luhman` packages.
+```{r}
+library(mdsr)
+library(Lahman)
+library(lubridate)
+library(dplyr)
+library(sqldf)
+
+```
+
+
+a. Using the `presidential` dataset, show a simple table that displays the number of leap years that occured during each president's time in office. Please label the second "Bush" as "Bush2".
+
+```{r}
+
+
+presidential$name[10] <- "Bush2"
+presidential$start_year <- year(presidential$start)
+presidential$end_year <- year(presidential$end)
+
+leap <- presidential %>%
+  group_by(name) %>%
+  mutate(leapyr = sum(leap_year(start_year:end_year)))
+
+tbl <- select(leap, name, leapyr)
+kable(tbl)
+
+
+```
+
+
+b. Consider the `Teams` dataset from the `Luhman` package that provides a series of baseball statistics over a number of years. Note that the "H" column refers to number of home runs. The following outlines a procedure to follow to determine the number of home runs that occurred during each presidents' (adjusted) time in office.
+i. First, filter the `Teams` dataset to only include years between 1953 and 2016.
+
+```{r}
+
+Teams <- filter(Teams, yearID >= 1953, yearID <= 2016)
+
+
+```
+
+ii. Next, we will partition the rows of the `presidential` dataset by only considering the year of each president's start and end dates with the conditions that 1) if a president's term did NOT start in January, then we will not include that year in their time in office, and 2) if a president's term ended in January, then that ending year will also not be included. For example, Johnson will be considered as having a starting year of 1964 and an ending year of 1968.
+
+```{r}
+presidential$start_month <- month(presidential$start)
+presidential$end_month <- month(presidential$end)
+
+presidential$StartYear <- ifelse(presidential$start_month != 1, presidential$start_year + 1, presidential$start_year)
+
+presidential$EndYear <- ifelse(presidential$end_month == 1, presidential$end_year - 1, presidential$end_year)
+
+pres <- presidential %>%
+  select(name, StartYear, EndYear)
+
+pres
+```
+
+iii. Answer the question: Which president had the most number of home runs occur during their term? Report this number.
+```{r}
+
+HomeRuns <- Teams %>%
+  group_by(yearID) %>%
+  summarize(home_runs = sum(HR))
+
+joinDat <- sqldf("
+                  SELECT name, yearID, home_runs 
+                   FROM HomeRuns 
+                   LEFT JOIN pres 
+                   ON yearID 
+                   BETWEEN StartYear 
+                   AND EndYear
+                   ")
+
+joinDat %>%
+  group_by(name) %>%
+  summarize(Homeruns = sum(home_runs)) %>%
+  arrange(desc(Homeruns))
+
+```
+```
+
+Bush2(George W. Bush) had the most number of homeruns as president witha total of 41,413 homeruns.
+
+```
+
+
+4. **Creating HTML Page;** In this problem we would like to create a basic HTML page. Please follow each of the steps below and finally submit your HTML file on Canvas. Please note that you don't need to answer these questions here in the .Rmd file.
+    a. Open a notepad or any plain text editor. Write down some basic HTML codes as shown in online (year 2014) Lecture 15, slide 6 and modify according to the following questions. Save the file as hw4.html and upload on Canvas as a separate file. 
+    b. Write "What is data science?" in the first header tag, `<h1></h1>`
+    c. Hw1 solution contains the answer of what is data science. The answer has three paragraphs. Write the three paragraphs of text about data science in three different paragraph tags `<p></p>`. You can copy the text from hw1 solution.
+    d. Write "What we learnt from hw1" in second heading under tag `<h2></h2>`
+    e. Copy all the points we learnt in hw1 solution. List all the points under ordered list tag `<ol></ol>`. Notice that each item of the list should be inside list item tag `<li></li>`.
+    f. Now we want to make the text beautiful. For this we would write some CSS codes in between `<head></head>` tag under `<style></style>`. For this please refer to online (year 2014) lecture 15 slide 8. First change the fonts of the body tag to Helvetica Neue.
+    g. For the paragraph that contains the definition of data science, give an attribute `id='dfn'` and in CSS change the color of 'dfn' to white, background-color to olive and font to be bold. 
+    h. For other paragraphs, give an attribute `class='cls'` and in CSS change the color of 'cls' to green.
+    i. Write CSS so that color of h1,h2 becomes orange.
+    j. Write javaScripts codes so that onClick on `h1` header, it shows a message 'Its about data science'.
+
+
+5. **Boston hubway data;** This question will explore Boston hubway data. Please carefully answer each question below including your codes and results.
+
+a. Obtain the compressed data, bicycle-rents.csv.zip, from Canvas and display few data rows.
+```{r}
+library(stringr)
+
+
+bicycleRents <- read.csv("bicycle-rents.csv")
+
+head(bicycleRents)
+
+```
+
+b. For each day, count the number of bikes rented for that date and show the data in a time series plot.
+```{r}
+dat <- bicycleRents
+dat$dates <- unlist(str_extract_all(dat$rent_date, '^\\d{4}-\\d{2}-\\d{2}'))
+
+timeDat <- dat %>%
+  group_by(dates) %>%
+  summarise(n = n())
+
+
+ggplot(timeDat, aes(x=dates, y=n))+
+  geom_point()+
+  xlab("Date Range")+ 
+  ylab("Bikes Rented Per Day")+
+  theme(axis.text.x = element_text(angle = 60, hjust = 1))
+
+
+
+``` 
+
+
+c. Based on the rent date column, create two new columns weekDay and hourDay which represent week day name and hour of the day respectively. Store the data in myDat and display few records of the data. Hint: For weekday use function wday().
+```{r}
+bicycleRents$weekDay <- wday(bicycleRents$rent_date, label = TRUE)
+
+bicycleRents$hourDay <- hour(bicycleRents$rent_date)
+
+myDat <- bicycleRents
+head(myDat)
+```
+
+
+d. Summarize myDat by weekDay based on the number of rents for each weekDay and store the data in weekDat. Display some data.
+
+```{r}
+weekDat <- myDat %>%
+  group_by(weekDay) %>%
+  summarize(n=n())
+
+head(weekDat)
+```
+
+
+e. Create a suitable plot of the data you stored in weekDay so that it displays number of bike rents for each week day.
+```{r}
+library(ggplot2)
+ggplot(weekDat, aes(x=weekDay, y=n))+
+  geom_col()+
+  xlab("Day of the WEEK")+ 
+  ylab("Number ofBike Rents")
+
+```
+
+f. Now we want to investigate what happens in each day. Summarize myDat again but this time by weekDay and hourDay and obtain the number of rents. Store the data in hourDat and Display some data.
+```{r}
+hourDat <- myDat %>%
+  group_by(weekDay,hourDay) %>%
+  summarise(n = n())
+
+head(hourDat)
+```
+
+
+g. The dataframe hourDat is now ready for plotting. Generate line plots showing number of bike rents vs hour of the day and colored by weekDay.
+```{r}
+
+ggplot(hourDat, aes(x=hourDay,y=n, color=weekDay))+
+  geom_line(size=.5)+
+  xlab("Hour of the DAY")+ 
+  ylab("Number of Bike Rents")
+
+```
+
+
+6. **Bonus for undergraduate (3 points) mandatory for graduate students:** The following link contains the complete texts of Romeo and Juliet written by Shakespeare. Read the complete text and generate a plot similar to Romeo and Juliet case study in online(year 2014) lecture 13 (last plot). 
+
+http://shakespeare.mit.edu/romeo_juliet/full.html
+
+```{r}
+library(rvest)
+library(stringr)
+library(reshape)
+
+RomeoandJuliet_web <- read_html("http://shakespeare.mit.edu/romeo_juliet/full.html")
+RomeoandJuliet_text <- html_text(RomeoandJuliet_web)
+
+# Extract all the words from the text
+RomeoandJuliet_words <- str_extract_all(RomeoandJuliet_text, '\\b\\w+\\b')
+RomeoandJuliet_words <- unlist(RomeoandJuliet_words, use.names = FALSE)
+
+# Remove uppdercase words and covert to Lower Case
+RomeoandJuliet_words <- tolower(gsub("\\b[A-Z]+\\b", '',RomeoandJuliet_words))
+
+RomeoandJuliet_words <- unlist(str_extract_all(RomeoandJuliet_words, '\\w+'))
+
+#Count total love
+loveCount <- ifelse(RomeoandJuliet_words == "love", 1 , 0)
+
+#Count total romeo
+romeoCount <- ifelse(RomeoandJuliet_words == "romeo", 1 , 0)
+
+# Create a dataframe to put in the words
+RJ_DF <- as.data.frame(RomeoandJuliet_words)
+
+# Create a column to put in the count of words
+RJ_DF$Love <- cumsum(loveCount)
+RJ_DF$Romeo <- cumsum(romeoCount)
+
+
+RJ_DF$c <- c(1:24105)
+RJ_DF$sumOfWords <- cumsum(RJ_DF$c)
+
+RJ_DF <- melt(RJ_DF, id.vars = c("RomeoandJuliet_words", "sumOfWords"), measure.vars = c("Love","Romeo"))
+
+ggplot(RJ_DF, aes(x=sumOfWords,y=value, color=variable))+
+  geom_line(size=.5)+
+  xlab("Total words count in full text")+ 
+  ylab("Cumilative sum of Love and Romeo")
+
+```
+
+7. **Bonus (2 points) question for all** : In the United States, a Consumer Expenditure Survey (CE) is conducted each year to collect data on expenditures, income, and demographics. These data are available as public-use microdata (PUMD) files in the following link. Download the data for the year 2016 and explore. Provide some plots and numerical summary that creates some interest about this data.
+
+https://www.bls.gov/cex/pumd.htm
+
+
+UCC = Uniform Commercial Code
+
+
+```{r}
+
+library(sqldf)
+library(dplyr)
+library(ggplot2)
+
+dtbd163 <- read.csv('dtbd163.csv')
+
+head(dtbd163)
+
+
+dtbd163 <- sqldf('SELECT distinct(UCC), sum(AMOUNT) as TotalAmount FROM dtbd163  group by UCC order by TotalAmount, UCC ASC')
+
+head(dtbd163)
+
+
+
+```
+
+What I did is used the 2016 data set from the url (https://www.bls.gov/cex/pumd.htm). I loaded the CSV and then use the package `sqldf` to query the CSV. I used distinct UCC column, and took the sum of the AMOUNT to see the value increase over the UCC.
+
+```{r}
+
+
+
+ggplot(dtbd163, aes(x=UCC, y=TotalAmount))+
+  geom_point()+
+   xlab("UCC(Uniform Commercial Code)")+ 
+   ylab("Total Amount")+
+  theme(axis.text.x = element_text(angle = 60, hjust = 1))
+
+
+```
+

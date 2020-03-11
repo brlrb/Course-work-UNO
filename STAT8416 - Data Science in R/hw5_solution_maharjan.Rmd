@@ -1,0 +1,425 @@
+---
+title: "STAT 4410/8416 Homework 5"
+author: "Maharjan Bikram"
+date: "Due on DEC 2nd, 2019"
+output:
+  pdf_document: 
+    latex_engine: xelatex
+  word_document: default
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+library(knitr)
+opts_chunk$set(fig.align='center', dpi=100, message=FALSE, warning=FALSE, cache=TRUE)
+output <- opts_knit$get("rmarkdown.pandoc.to")
+if(!is.null(output)) {
+  if (output=="html") opts_chunk$set(out.width = '400px') else
+    opts_chunk$set(out.width='.6\\linewidth')
+}
+```
+
+```{r}
+
+library(XML)
+library(RCurl)
+library(data.table)
+library(ggplot2)
+library(lubridate)
+library(dplyr)
+
+
+```
+
+
+1. **Working with databases:** For this exercise we will use `MySQL` database available in the data science lab or the `datascienceVM`. Answer the following questions.
+
+a. Write down the connection string that would establish a connection to the `MySQL` database `trainingDB`.
+```{r eval=FALSE}
+
+library(RMySQL)
+con <- dbConnect(MySQL(), 
+                 user="training", 
+                 password="training123", 
+                 dbname = "trainingDB", 
+                  host = "localhost")
+
+```
+
+b. Write down a `SQL` command to select pclass, sex, survived and their average age from the titanic table. Store the selected data in data frame `avgAge` and display all the aggregated data.
+```{r eval=FALSE}
+
+sql1a <- "select pclass, sex, survived, avg(age) as averageAge from titanic group by  pclass, sex, survived"
+
+avgAge <- data.frame(dbGetQuery(con, sql1a))
+ 
+avgAge
+
+```
+
+c. Now generate a line plot showing average age vs pclass colored by survived and faceted by sex.
+```{r eval=FALSE}
+
+library(ggplot2)
+
+ggplot(data=avgAge, aes(x=averageAge, y=pclass, color=survived, group=survived))+
+  geom_line()+
+  geom_point()+
+  facet_grid(~sex)+
+  xlab("Average Age")+
+  ylab("Passenger Class")+
+  labs(color='Survived')
+```
+
+
+d. Use the package `dplyr` to obtain the same result as you did in question 3(b). Display the results and the underlying `SQL` command used by `dplyr`.
+```{r eval=FALSE}
+library(dplyr)
+conDplyr = src_mysql( user="training", 
+                      password="training123", 
+                      dbname = "trainingDB", 
+                      host = "localhost")
+
+avgAge <- conDplyr %>%
+  tbl("titanic") %>%
+  group_by(pclass, sex, survived)  %>%
+  select(pclass, sex, survived, age) %>%
+  summarise(averageAge = mean(age))
+
+head(avgAge)
+
+```
+
+
+
+e. Find the name, age, sex and pclass of the 5 oldest and 5 youngest persons who died. Remove the people whose age information are not available for this computation.
+
+```{r eval=FALSE}
+# 5 Youngest person who died
+sql1eyoung <- "SELECT name, age, sex, pclass 
+          FROM titanic 
+          WHERE age IS NOT NULL OR age <= 0
+          ORDER BY age ASC
+          LIMIT 5"
+
+data.frame(dbGetQuery(con, sql1eyoung))
+
+
+
+
+# 5 Oldest person who died
+sql1eold <- "SELECT name, age, sex, pclass 
+          FROM titanic 
+          WHERE age IS NOT NULL OR age <= 0
+          ORDER BY age DESC
+          LIMIT 5"
+
+data.frame(dbGetQuery(con, sql1eold))
+```
+
+
+
+
+2. **Scraping HTML data;** We often obtain data from Wikipedia. This exercise will guide us to collect some data about the native speakers of some common languages. The information can be obtained from the following link (remember to copy it from pdf not Rmd file).
+
+http://en.Wikipedia.org/wiki/List_of_languages_by_number_of_native_speakers
+
+Now answer the questions below.
+
+
+```{r}
+
+library(XML)
+library(RCurl)
+library(data.table)
+library(ggplot2)
+```
+
+
+a. Read all the HTML tables available in the above link and store the result in an object called `tables`. Note that you may have to use the function `getURL()` as we talked in class. 
+
+```{r}
+
+tables <- getURL("https://en.wikipedia.org/wiki/List_of_languages_by_number_of_native_speakers")
+tables <- readHTMLTable(tables)
+
+```
+
+
+b. Now notice that the table in this link does not have any ID to specifically get the data from. But if you examine the source of the page, the first table is the data table. Thus we pick first table in the list of tables as our data. Store the data of first table in an object called `datRaw`. 
+
+```{r}
+
+datRaw <- as.data.frame(tables[[1]])
+head(datRaw)
+names(datRaw) <- as.matrix(datRaw[1, ])
+datRaw <- datRaw[-1, ]
+datRaw[] <- lapply(datRaw, function(x) type.convert(as.character(x)))
+```
+
+
+
+c. We are particularly interested about columns 2 and 3 of `datRaw`. Subset columns 1 and 2 of `datRaw` and store the data in `dat`. Give the column names as language, nativeSpeaker. Display some data from `dat`.
+
+```{r}
+datLanguage<- data.table(datRaw[2])
+datNativeSpeaker <- data.table(datRaw[3])
+dat <- cbind(datLanguage, datNativeSpeaker)
+
+#rename columns
+colnames(dat)[1] <-"language"
+colnames(dat)[2] <-"nativeSpeaker"
+head(dat)
+```
+
+
+d. Notice that the data is not clean. We have a comma(`,`) and references in parenthesis in the number of native speaker. We have to carefully review the data before we can use it. But first let us remove the  `,` and additional numbers with parenthesis from column 2 and make the column numeric. Also we may need to do the same operation with the first column. Clean the data and store it in `cleanDat`. Display some cleaned data. 
+
+```{r}
+cleanLanguage <- dat$language
+head(cleanLanguage)
+dat$language <- data.table(gsub("[^A-Za-z///' ]","",cleanLanguage))
+cleanDat <- dat
+head(cleanDat)
+```
+
+
+
+e. Now plot the data to show language wise ranks and their relative position. For this we plan to select only top 20 languages based on number of speakers. Generate a bar chart showing the top 20 languages. Order the bars according to the number of speakers. Please  **don't show** totals.
+
+```{r}
+# sort the nativeSpeaker data
+cleanDatSorted <- cleanDat[order(-nativeSpeaker),]
+
+# get the top 20
+cleanDatSortedTop20 <- head(cleanDatSorted, 20)
+
+
+# bar chart // ordered by high val to low
+ggplot(cleanDatSortedTop20, aes(x= reorder(language, -nativeSpeaker), y =nativeSpeaker ))+
+  geom_bar(stat="identity")+
+  xlab("laguage")+ 
+  ylab("Number of Native Speaker")+
+  theme(axis.text.x = element_text(angle = 60, hjust = 1))
+
+```
+
+
+
+3. **Extracting twitter data;** In this problem we would like to extract data from twitter. For this refer to the documentation in the following link.
+
+`https://github.com/geoffjentry/twitteR/`
+
+a. **Twitter API set up** Set up twitter API using any of the following methods. Make sure you installed all the packages as mentioned in the class.
+
+**Method 1:** Read Getting Started section of the above link and create a twitter application by going to the link `https://apps.twitter.com/`. Once you created your application connect twitter from `R` using the secrets and keys obtained from your twitter application. 
+
+
+```{r}
+library(twitteR)
+api_key <- "Dh7GVfe7YH1274TIiJ2iEC1lQ"  
+api_secret <- "BHxPvlpZmiMy2hMVSzueEGhX3QFPm8QNtQY7jX039ubKT26CQC" 
+access_token <- "41952054-33iIRu4ITWPE8Xc0LVS6joH3C7GItKTIgpP4lOS0t"
+access_token_secret <- "3cRDJEIatz1mVYbdvnip797taxMb8fgdojhgV6gCVql7P"
+
+setup_twitter_oauth(api_key,api_secret,access_token, access_token_secret)
+```
+
+b. Now search twitter messages for "data science job". Display few job informations.
+```{r}
+dsjTweets <- searchTwitter("data science job")
+head(dsjTweets)
+
+```
+
+
+c. Search 300 tweets using the hash tag `#chess` and save them in an object called `rTweets`. Show the top 7 sources of tweets (such as android or iphone) in a ordered bar plot. 
+
+```{r}
+# Get 300 tweets with (#chess)
+rTweets <- searchTwitter("#chess", n=300)
+
+# Get the source from where the tweet came from
+sources <- sapply(rTweets, function(x) x$getStatusSource())
+
+# Remove html tags
+sources <- gsub("</a>", "", sources)
+sources <- strsplit(sources, ">")
+
+# return a vector of sources list
+sources <- sapply(sources, function(x) ifelse(length(x) >1, x[2], x[1]))
+
+# get the count
+sources_table = table(sources)
+
+# convert the ount into a data frame
+df <- data.frame(names(sources_table), sources_table)
+
+# sort by Frequency as it appears
+dfSorted <- df[order(-df$Freq),]
+
+# get the top 7 values after sorted
+dfSortedTop7 <- head(dfSorted,7)
+
+
+# bar chart // orderd by high to low
+ggplot(dfSortedTop7, aes(x=reorder(sources, -Freq), y =Freq ))+
+  geom_bar(stat="identity")+
+  xlab("Sources of tweet")+ 
+  ylab("Total Frequency")+
+  theme(axis.text.x = element_text(angle = 60, hjust = 1))
+
+```
+
+
+d. Notice that the object `rTweets` is a list. Convert it into a data frame using function `twListToDF` and store it in an object called `dTweets`. Display some data from `dTweets`.
+
+```{r}
+dTweets <- twListToDF(rTweets)
+
+head(dTweets)
+
+```
+
+
+e. `dTweets` has a column showing the time the tweet was created. Generate a plot showing number of tweets on each of the hours. Add a smooth line overlaid on your plot.
+
+```{r}
+# convert the time into the format ymd_hms()
+hour <- data.frame(hour(ymd_hms(dTweets$created)))
+
+# add a new column in the dTweet with hour value
+dTweets <-  data.frame(hour, dTweets)
+
+# rename the newly added hour column 
+colnames(dTweets)[1] <-"hourValue"
+
+# filter NA values if any
+dTweetsHourCount <- dTweets %>%
+  filter(!is.na(hourValue)) %>%     
+  group_by(hourValue) %>%           
+  tally()
+
+ggplot(dTweetsHourCount, aes(x=hourValue, y=n))+
+  geom_smooth()+
+  geom_point()+
+  xlab("Hour Value")+ 
+  ylab("Total tweet per hour")
+
+```
+
+
+f. Arrange the dataframe `dTweets` based on the `retweetCount`. While doing this select only columns `text, screenName, retweetCount`. Store the data in a object called `mostTweets`. Display five texts that are most retweeted.
+
+```{r}
+
+retweetCountSorted <- dTweets[order(-dTweets$retweetCount),]
+
+mostTweets <- retweetCountSorted %>%
+  select(text, screenName, retweetCount)
+
+head(mostTweets$text,5)
+
+```
+
+
+g. Generate a bar chart showing top 15 screen names and count of retweets from `mostTweets`. Order the bars based on the retweet counts.
+```{r}
+# bar chart
+
+ggplot(head(mostTweets,15), aes(x = reorder(screenName, -retweetCount), y = retweetCount ))+
+  geom_bar(stat="identity")+
+  xlab("Twitter Screen Name")+ 
+  ylab("Total retweet count")+
+  theme(axis.text.x = element_text(angle = 60, hjust = 1))
+
+
+
+```
+
+
+4. **Exploring data;** Explore the crime data by downloading it from Canvas. Provide nice tables and some plots that explain some important features revealed from the data. Discuss what you have found.
+
+```{r}
+
+library(ggplot2)
+library(dplyr)
+
+# read RDS file
+crimedat <- readRDS('usaCrimeDat.rds')
+
+#remane Type.of.Crime to crimeType
+colnames(crimedat)[3] <-"crimeType"
+
+head(crimedat)
+
+crimedat_count <- crimedat %>% 
+  group_by(Crime, Year) %>% 
+  summarize(n = sum(Count)) %>% 
+  arrange(Year)
+
+crimedat_count
+```
+
+In the bar chart below, we can see that the count of each Crime per Year. Year 1991 had the most crime where as the year 1969 had the lowest number of crime.
+
+```{r}
+ggplot(crimedat_count, aes(x = reorder(Year, -n), y = n/1000))+
+  geom_bar(stat = "identity")+
+  xlab("Year the crime occurred")+
+  ylab("Total counts of Crimes per category (in thousands)")+
+  theme(axis.text.x = element_text(angle = 60, hjust = 1, vjust = 1 ))
+```
+
+
+
+In the line chart below, we can see that the count of each Crime category per year. Without doubt Larceny-theft and Burglary has been the most over the years where as Murder and nonnegligent Manslaughter is lowest compared to other Crime category. Forcible rape did increase overtime but the data shows that the rate of increase is very slow and also minimal compared to other Crime type.
+
+```{r}
+
+crimedat_year <- crimedat %>% 
+  group_by(Year, Crime) %>%
+  summarize(n = sum(Count)) %>% 
+  arrange(-n)
+
+ggplot(crimedat_year, aes(x = Year, y = as.integer(n) , color = Crime))+
+  geom_line()+
+  xlab("Year")+
+  ylab("Total Crimes per Crime category")
+
+```
+
+
+
+
+When we subset Nebraska state from all other state, we can see that it does not really differentiate much from the over all states with "Larceny-theft" and Burglary being the most and "Forcible rape" and "Murder nonnegligent Manslaughter" being the lowest overtime.
+
+```{r}
+
+crimedat_nebraska <- crimedat %>%
+  filter(state == "nebraska") %>%
+  group_by(Year, Crime) %>%
+  summarize(n = sum(Count))
+
+ggplot(crimedat_nebraska, aes(x = Year, y = n))+
+  geom_line()+
+  facet_wrap(~Crime)+
+  xlab("Year")+ 
+  ylab("Total Crime in Nebraska per Crime category")+
+  theme(axis.text.x = element_text(angle = 60, hjust = 1))
+
+
+
+
+
+
+```
+
+
+
+
+
+
+
+
+

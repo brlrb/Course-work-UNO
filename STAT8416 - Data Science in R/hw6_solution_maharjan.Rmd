@@ -1,0 +1,178 @@
+---
+title: "STAT 4410/8416 Homework 6"
+author: "Maharjan Bikram"
+date: "Due on Dec 13, 2019"
+output:
+  pdf_document:
+    latex_engine: xelatex
+  html_document: default
+  word_document: default
+---
+
+```{r setup, include=FALSE}
+library(knitr)
+opts_chunk$set(fig.align='center', dpi=100, message=FALSE, warning=FALSE, cache=TRUE)
+output <- opts_knit$get("rmarkdown.pandoc.to")
+if (output=="html") opts_chunk$set(out.width = '400px') else
+  opts_chunk$set(out.width='.6\\linewidth')
+```
+
+1. **Working with HDFS:** The Hadoop Distributed File System (HDFS) allows us to manipulate massive amount of data using scalable computing power. For this question we will use the cloudera quick start virtual machine version CDH 5.5 or higher to manipulate data in HDFS. You can take help from others, but **submit your own work**.
+
+Please answer the questions below. The first question is answered so you can have an idea how to write answers for this homework.
+
+a. In your virtual machine, create two HDFS folders using the following commands. Display the output of the command `hadoop fs -ls}.
+
+```{r, eval = FALSE}
+hadoop fs -mkdir wordcount
+hadoop fs -mkdir wordcount/input
+```
+
+
+```
+
+drwxr-xr-x   - cloudera cloudera          0 2019-12-09 19:14 wordcount
+
+```
+
+
+b. Download the file `words.txt` from canvas and save it to your home directory `/home/cloudera`. Then copy that file to the newly created HDFS folder `wordcount/input`. Please don't worry if the file is not clean. Just present the output of the following command to demonstrate that the file is successfully copied.
+
+```{r, eval = FALSE}
+hadoop fs -ls wordcount/input
+```
+
+```
+
+-rw-r--r--   1 cloudera cloudera      54601 2019-12-09 19:26 wordcount/input/words.txt
+
+```
+
+
+c. Now download the JAVA source codes `WordCount.java` from the blackboard and save it to your home directory. Also create a new folder called `wordcount_classes`. Now provide the output of the following command
+
+```{r, eval = FALSE}
+ls
+```
+
+```
+[cloudera@quickstart ~]$ ls
+cloudera-manager  lib                    pig_1575920588842.log  Templates
+cm_api.sh         ls                     pig_1575927618940.log  Videos
+datasets          Music                  pig_1575930003870.log  wordcount_classes
+Desktop           Pictures               pig_1575934580841.log  wordcount.jar
+Documents         pig_1417822134784.log  pig_1575941864643.log  WordCount.java
+Downloads         pig_1418933783120.log  pig_1576099559111.log  words.txt
+eclipse           pig_1575331200230.log  Public                 workspace
+
+```
+
+
+
+d. Compile, build and run the `WordCount.java` program similar to what we did in slide 6 of the hadoop-mapreduce lecture. Output of the program should be saved in a folder called `wordcount/output` and present the result of the following command. 
+
+```{r, eval = FALSE}
+hadoop fs -ls wordcount/output
+```
+
+
+
+```
+
+[cloudera@quickstart ~]$ 
+[cloudera@quickstart ~]$ javac -cp /usr/lib/hadoop/client-0.20/\* -d wordcount_classes WordCount.java
+[cloudera@quickstart ~]$ jar -cvf wordcount.jar -C wordcount_classes/ .
+
+added manifest
+adding: org/(in = 0) (out= 0)(stored 0%)
+adding: org/myorg/(in = 0) (out= 0)(stored 0%)
+adding: org/myorg/WordCount$Reduce.class(in = 1611) (out= 650)(deflated 59%)
+adding: org/myorg/WordCount$Map.class(in = 1938) (out= 798)(deflated 58%)
+adding: org/myorg/WordCount.class(in = 1546) (out= 748)(deflated 51%)
+[cloudera@quickstart ~]$ 
+
+
+[cloudera@quickstart ~]$ 
+[cloudera@quickstart ~]$ hadoop fs -ls wordcount/output
+Found 2 items
+-rw-r--r--   1 cloudera cloudera          0 2019-12-09 19:35 wordcount/output/_SUCCESS
+-rw-r--r--   1 cloudera cloudera      28935 2019-12-09 19:35 wordcount/output/part-00000
+[cloudera@quickstart ~]$ 
+
+
+```
+
+
+
+
+2. **Pig in action:** For this exercise we will use `Pig` to manipulate data in HDFS. Please answer the following questions, provide all the `Pig} commands you used.
+
+a. Launch the grunt shell using the command `pig`. Show the output of the following command and comment if the output is same as what you have seen in question 1(d).
+
+```{r, eval = FALSE}
+grunt> ls wordcount/output
+```
+
+```
+
+grunt> ls wordcount/output
+hdfs://quickstart.cloudera:8020/user/cloudera/wordcount/output/_SUCCESS<r 1>	0
+hdfs://quickstart.cloudera:8020/user/cloudera/wordcount/output/part-00000<r 1>	28935
+
+
+```
+
+
+b. LOAD the data file `part-00000` you just created in folder `wordcount/output`. While doing this name the first column words and the second column count. Also, first column should be chararray and the second column should be int. Display first 10 rows.
+
+
+
+```
+grunt>                                                     
+grunt> myDat = LOAD 'wordcount/output/part-00000' AS (words:chararray, count:int);
+grunt> myDatLimit10 = LIMIT myDat 10;                                             
+grunt> describe myDatLimit10;
+myDatLimit10: {words: chararray,count: int}
+grunt> DUMP myDatLimit10;
+
+
+
+("Be,1)
+("Are,1)
+("Cut,1)
+("Don't,2)
+("Aren't,1)
+("Dell,",1)
+("Except,1)
+("Blessed,1)
+("Coffee?",1)
+("Dillingham",1)
+
+```
+
+
+c. ORDER the data by the count of words and display the top 10 most frequent words.
+
+```
+
+grunt> myDat = LOAD 'wordcount/output/part-00000' AS (words:chararray, count:int);
+grunt> order_dat = ORDER myDat BY count DESC;                                     
+grunt> top10 = limit order_dat 10;                                                
+grunt> dump top10; 
+
+(the,434)
+(and,325)
+(to,280)
+(of,265)
+(a,209)
+(in,173)
+(I,153)
+(that,150)
+(is,103)
+(for,94)
+grunt> 
+
+
+```
+
+

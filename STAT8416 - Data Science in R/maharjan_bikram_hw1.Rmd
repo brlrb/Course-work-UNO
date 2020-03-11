@@ -1,0 +1,320 @@
+---
+title: "STAT 4410/8416 Homework 1"
+author: "Maharjan Bikram"
+date: "Due on Sep 18, 2019"
+output:
+  pdf_document: default
+  word_document: default
+  html_document: default
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, fig.align='center')
+
+library(knitr)
+library(ggplot2)
+```
+
+
+
+1. Based on your reading assignments answer the following questions:
+  
+  a) What is data science?
+  
+  * Data Science is Arts and Science of transforming data and working with Data Products. Its is not Computer Science or Statistics. As Wikipedia defines it, "It is a multi-disciplinary field that uses scientific methods, processes, algorithms and systems to extract knowledge and insights from structured and unstructured data". So one can say that Data Science is the process of extracting meaningful insight from unstructured data and make as much use of it as possible using various methods from scientific computation to business decisions.
+    
+    
+  b) Explain with an example what you mean by data product.
+    
+  * A data product is a data dependent product that has some commercial value or something that can be put on sale or purchased. For example:
+    + A dataset summarizing the original bigger data set
+    + An online tool to visualize or explore important information
+    + Mobile app
+    + Could be a report based on data
+    
+    
+  c) Carefully read Cleveland's paper shown in lecture 2 and discuss what he suggested about the field of statistics and data science. 
+    
+  * Cleveland's paper specifies a plan to enlarge or amplify topics in the technical part of Statistics and on a larger scale it is focuses on Data Analyst. Statistics itself is a broader field and that the technical part that is seprated will be termed as Data Science.
+    
+    
+   d) Explain in a short paragraph how data science is different from computer science.   
+  
+  * Computer Science is a study of Algorithms, Computer Design, Computer Architecture whereas Data Science is a study of Data, Data Technology, Generating Data Reports, and Graph. In Computer Science we go into depth on how an algorithm works, and also invent new algorithms to make computer program better and faster whereas in Data Science we go into depth on how to structure data and work with data that are big or small and use algorithms developed in Computer Science to process data to find meaningful insigts.
+    
+    
+  e) What is data literacy? Is it important to be data literate in this modern world? Explain why or why not.  
+  
+  * Data literacy is having the knowledge on how to interprete data, either by reading it, analyze it manually or using computer software, various tools and be able to provide feedback about the data. It is being able to communicate data into a normal conversation so that anyone listening can understand the meaning behind the data.
+  
+  * It is very important to be data literate in the modern world because the world is run by data. From learning to undertand our bank statement to understanding a daily weather to understanding commute route from one place to another are some of the basic data literacy one should have. If we are not data literate then the medium of communication is going to be bottleneck and most basic level task that a person does in a day will not be possible.
+  
+    
+    
+  f) In his article, Donoho talked about the Common Task Framework. Explain what it is and why he mentioned it. 
+  
+  * Common Task Framework or also known as CTF as described by Donoho is the “secret sauce” of the “predictive culture” in the statistical-and-machine-learning community. It is a Publicly available datasets for training that are well documented and contain the relevant information for each observation (e.g., features, class labels) for example Supervised Learning in Machine Learning. It is also a Groups of “enrolled competitors” that have the common task of inferring prediction rules from the observations in the training data and An objective “scoring referee” who can evaluate the prediction rules that are submitted based on their performance on test datasets that are unavailable to the competitors (i.e., “behind a wall”). The resulting prediction scores are reported by the scoring referee automatically.
+  
+ 
+ 
+  g) According to Donoho, what are the activities of greater data science? 
+  
+  * According to Donoho, the The activities of Greater Data Science are classified into 6 divisions:
+    + Data Exploration and Preparation
+    + Data Representation and Transformation
+    + Computing with Data
+    + Data Modeling
+    + Data Visualization and Presentation
+    + Science about Data Science
+  
+  
+    
+2. What are the very first few steps one should take once data is loaded onto **R**? Demonstrate them by loading tips data from http://www.ggobi.org/book/data/tips.csv.
+
+    
+    ```{r}
+     tips = read.csv("http://www.ggobi.org/book/data/tips.csv", header = TRUE)
+     head(tips)
+    ```
+
+
+
+3. In our **R** class, we learned about recursive functions that produce a sequence of numbers up to a given number, say $n$, as demonstrated with the following code:
+  
+        
+    ```{r}
+    foo <- function(x) {
+      print(x)
+      if(x > 1) {
+        foo(x - 1)
+      }
+    }
+    
+    moo <- function(x) {
+      if(x > 1) {
+        moo(x - 1)
+      }
+      print(x)
+    }
+    
+    foo(3)
+    moo(3)
+    ```  
+  
+|         Explain why ``moo()`` prints 1 through 3 while ``foo()`` prints from 3 to 1.
+
+&nbsp;
+  
+  *  ``moo()`` prints **1** through **3** because the first **if** condition check if **x** is greater than **1**, which is **true** so it calls the recursive function and repeats until **x** is no longer greater than **1** so it comes out of the loop and meets the ``print(x)`` so since the value right now is **1** it prints **1** first. But remember that we are inside a recursive function so it prints the second **x** value which is **2** and then finally it prints **3** which is the final recursive call and terminates the function.
+        
+        
+  *  Whereas, ``foo()`` prints **3** through **1** because the value of **x** when passed through the parameter is **3** and the first line of code in ``foo()`` is ``print(x)`` which prints **3**. After that the **if** condition checks if **x** is greater than **1**, which is **true** then it calls a recursive function and hence we get 2, because **3-1** equals **2**. Here the ``foo()`` again has the ``print(x)`` which prints **2** and it repeats itself unless its **1** and then finally it prints **1** and terminates the function. 
+  
+
+
+
+
+4. The function `sqrt()` provides the square root of a non-negative number. Note what happens when you try `sqrt(-1)`. We want to create our own function that either finds the square root of a non-negative number or provides a custom message if we pass it a negative number.  
+  
+  a)  Create a new `R` function `getRootNotVectorized()` that will return the square root of any non-negative number and 'not possible' for a negative number. Further, `getRootNotVectorized()` should **only** successfully return 'not possible' if the negative value is the first element that you pass to the function. Otherwise, your function should return `NaN` for negative values. Demonstrate that your function produces the following outputs:  
+  \    
+  `getRootNotVectorized(4) = 2`  
+  `getRootNotVectorized(-4) = "not possible"`  
+  `getRootNotVectorized(c(-1, -4)) = "not possible"`  
+  `getRootNotVectorized(c(0, 1, -1, 4, -4)) = 0 1 NaN 2 NaN`.  
+  \   
+  
+  ```{r}
+  getRootNotVectorized <- function(x) {
+  
+    if(x < 0) {
+      return ("not possible")
+    } else {
+    return(sqrt(x))
+    }
+  }
+  
+  getRootNotVectorized(4)
+  getRootNotVectorized(-4)
+  getRootNotVectorized(c(-1, -4))
+  getRootNotVectorized(c(0, 1, -1, 4, -4))
+  
+  ```  
+      
+      
+  Don't worry about the warning messages that accompany vector inputs with more than one element for now.    
+     
+  b) Now create a second function `getRootVectorized()` that will return the square root of any non-negative number and 'not possible' for a negative number **regardless** of the number's position in a numeric vector of arbitrary length. Demonstrate that your function produces the following outputs:   
+     
+  \   
+  `getRootVectorized(4) = 2`  
+  `getRootVectorized(-4) = "not possible"`  
+  `getRootVectorized(c(-1, -4)) = "not possible" "not possible"`  
+  `getRootVectorized(c(0, 1, -1, 4, -4)) = "0" "1" "not possible" "2" "not possible"`.    
+  \  
+  
+  ```{r}
+  
+  getRootVectorized <- function(x) {
+  
+  ifelse(x < 0, "not possible", sqrt(x))
+  
+  }
+  
+  
+  getRootVectorized(4)
+  getRootVectorized(-4)
+  getRootVectorized(c(-1, -4))
+  getRootVectorized(c(0, 1, -1, 4, -4))
+  
+  ```
+  
+      
+      
+  c) Describe the differences in your code between `getRootNotVectorized()` and `getRootVectorized()` that allowed you to get the desired message output for any negative element of a vector in the latter function but not the former. Knowing whether or not functions that you use will handle vectors in the way that you expect will be very important as you continue working with `R`. 
+      
+  *  With `getRootNotVectorized()` we are using **if/else** condition because the vector length is euqal to **1** whereas in the `getRootVectorized()` we are using **ifelse** condition because the vector lenth is more than **1**
+      
+      
+  d) Why do you see a difference between the output of the two following lines of code?
+    
+  ```{r, eval=FALSE}
+  is.numeric(getRootVectorized(c(0, 1, 4)))
+  is.numeric(getRootVectorized(c(0, 1, -4)))
+  ```
+  
+  * We see a different output as **TRUE** in the first line of code and the **FALSE** on the second line of code in the above two lines of code. It is because the second line of code has a Negative value which when checked by **is.numeric()** and it cannot find the negative of a **square root**. The benefit of reading single line and multiple line of code also has the effect on why the value is returing **TRUE** or **FALSE**
+  
+
+
+
+5. This problem will give you some practice with creating and manipulating vectors.
+
+  a) Using `seq()`, create a vector consisting of an arithmetic sequence of integers from 5 to 50 with a common difference of 5 stored in a variable called `mySeq`. **Report** `mySeq`. 
+    
+```{r}
+
+  mySeq <- seq(5, 50, by = 5)
+  mySeq
+
+```
+    
+    
+  b) Describe how the different arguments in each of the three following commands changes the output of `rep()`: `rep(mySeq, 5)`, `rep(mySeq, each = 5)`, and `rep(mySeq, mySeq)`.  
+  
+* `rep(mySeq, 5)` **prints** sequence of numbers in increasing order from **5** to **50** with a common difference of **5**,and repeats the same number **5** seperate times whereas rep(mySeq, each = 5) **prints** numbers from **5** to **50**with a common difference of **5** in increasing order but it prints each number, starting from **5**, **5** times each before printing next number whereas rep(mySeq, mySeq) prints the number from **5** to **50** with a common difference of **5** and prints the number of the face value in increasing order. For example if the number is **20** then it prints **20**, **20** times or if the number is **25** then it prints **25**, **25** times before printing next number.
+
+
+  
+  c) Concatenate the sequence `1:14` to the end of the vector described by `rep(mySeq,mySeq)` and store
+the resulting vector in the same `mySeq` variable. **Report** the length of `mySeq`.  
+
+    ```{r}
+      seq    <- rep(mySeq, mySeq)
+      num    <- rep(1:14)
+      mySeq  <- c(seq, num)
+      length(mySeq)
+    ```
+    
+    
+    
+  d) Create a square matrix populated row-wise from your `mySeq` vector and store it in a variable called `sqMtrx`. **Report** the vector of values described by the column sums of `sqMtrx`
+  
+  
+    ```{r}
+      ncol <- sqrt(length(mySeq))
+      sqMtrx <- matrix(mySeq, ncol)
+      col_sums <- c(colSums(sqMtrx))
+      head(col_sums)
+    ```
+
+
+
+6. Write a program that will do the following. Include your codes and necessary outputs to demonstrate your work.  
+  a) Generate 350,000 random numbers from a gamma distribution with `shape = 2` and `scale = 3` and store these numbers in a vector called `myVector`. **Report** a histogram of the numbers you just generated.
+    
+```{r}
+
+  myvector <- rgamma(n = 350000, shape = 2 , scale = 3)
+  hist(myvector)
+
+```
+    
+    
+  b) Convert `myVector` into a matrix with 5,000 rows and assign it to an object called `myMatrix`. **Report** the dimensions of `myMatrix`. 
+  
+```{r}
+  myVector <- rgamma(n = 350000, shape = 2, scale = 3)
+  head(myVector)
+  myMatrix <- matrix(myVector, nrow = 5000, byrow = TRUE)
+  dim(myMatrix)
+```
+      
+
+  c) Compute the row means of `myMatrix` and **report** a histogram of those row means.  
+      
+```{r}
+  row_mean <- c(rowMeans(myMatrix))
+  hist(row_mean)
+```
+  
+  
+  d) Explain why the two histograms you created in (6a) and (6c) have different shapes. 
+  
+  * The reason why the two histograms have different shapes because on **6a** we are finding the **sum** of the columns and on **6c** we are finding **mean** of the rows which seems to have the **average** towards the middle of the available data but the  **6a** we are taking sums of the columns in which the dataset had more number towards the lower number such as less than **10** so the columns sums has higer bar in the histogram towards the lower number and then it decrease as we move towards the higher number.
+
+
+7. Perform the following reproducible procedure:  
+
+  a) Set a seed for the `R` random number generator using `set.seed()` and seed value 2019. 
+  
+```{r}
+
+  set.seed(2019)
+
+```
+    
+    
+  b) Create a vector called `x` of 1,000 values from a normal distribution with mean 100 and standard deviation 20. **Report** the `summary()` of `x`.  
+
+```{r}
+  x <- rnorm(1000, 100, 20)
+  summary(x)
+```    
+    
+  c) Create a second vector called `y` of 1,000 values from a normal distribution with mean 0 and standard deviation 4. **Report** the `summary()` of `y`.  
+  
+```{r}
+  y <- rnorm(1000, 0, 4)
+  summary(y)
+
+```   
+    
+    
+  g) Create a data frame called `df` from your `x` and `y` vectors.  
+  
+```{r}
+  df <- data.frame(x,y)
+  summary(df)
+
+```      
+    
+  h) `plot()` a scatterplot of `df`.  
+  
+```{r}
+ 
+  plot(df)
+
+```  
+    
+  i) **Report** the `tail()` of `df` as a nice table using `kable()`.  
+
+```{r}
+  library(kableExtra)
+  kable(tail(df))
+
+```    
+  
+  
