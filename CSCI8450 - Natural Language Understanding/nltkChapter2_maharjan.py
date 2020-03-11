@@ -20,14 +20,12 @@ def question1():
 
 
 
-
 def question2():
 
     # get the length of word types
     persuasion_word_token_length = nltk.corpus.gutenberg.words('austen-persuasion.txt')
     persuasion_word_token_type = len(set(persuasion_word_token_length))
     print(persuasion_word_token_type)
-
 
 
 
