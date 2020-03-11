@@ -35,10 +35,10 @@ Now answer the following questions:
 
   tips.dat <- data.frame(tips.dat$tip.rate, tips.dat)
 
-  head(tips.dat)
-
-  
+  head(tips.dat)  
 ```
+
+
 
   b. Draw a side-by-side violin plot of the tip rate for each party size. Order the party sizes by the median tip rate. Provide your code as well as your plot. Which party size is responsible for the highest median tip rate?
   
