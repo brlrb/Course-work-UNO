@@ -1,0 +1,136 @@
+---
+title: "COVID19"
+author: "Bikram Maharjan"
+date: "3/13/2020"
+output:
+  html_document:
+    df_print: paged
+  pdf_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo=TRUE, warning=FALSE, message=FALSE)
+```
+
+```{r, echo=FALSE}
+
+library(tidyverse)
+library(plotly)
+library(reshape2)
+
+```
+
+
+
+### Prepare the dataset
+
+```{r}
+
+# Read the originalCSV - Data as on March 13th 2020 
+covid_recovered <- read.csv('time_series_19-covid-Recovered.csv', stringsAsFactors = FALSE)
+covid_confirmed <- read.csv('time_series_19-covid-Confirmed.csv', stringsAsFactors = FALSE)
+covid_death <- read.csv('time_series_19-covid-Deaths.csv', stringsAsFactors = FALSE)
+
+# Select required data from each time series data frame
+recovered <- covid_recovered[c(1,2,55)]
+confirmed <- covid_confirmed[c(1,2,55)]
+death <- covid_death[c(1,2,55)]
+
+
+# Remame the column names
+recovered <- recovered %>% rename(recovered = 'X3.12.20')
+confirmed <- confirmed %>% rename(confirmed = 'X3.12.20')
+death <- death %>% rename(death = 'X3.12.20')
+
+
+# Merge the dataset
+recovered_confirmed <- merge(recovered, confirmed, by.recovered = 'Country.Region', sort = TRUE)
+covid_19 <- merge(recovered_confirmed, death, by.a = 'Country.Region', sort = TRUE)
+
+
+# Melt the dataset into long form
+covid_19_long <- melt(covid_19, id=1:2)
+
+
+```
+
+
+### U.S. only analysis
+```{r}
+
+# Prepare dataset for US only and plot using ggplotly
+usaDat <- covid_19_long %>% filter(Country.Region == 'US') 
+
+# Filter data with more than 0 cases
+usaDat <- usaDat %>% filter(value > 0) 
+  
+# Prepare the plot
+usaDat_plot <- ggplot(usaDat, aes(reorder(Province.State, -value), value, color = variable)) + 
+  geom_point(stat = "identity") +
+  ggtitle("COVID-19 cases in the US (As of March 13th 2020)") +
+  xlab("U.S. States") + 
+  ylab("Total cases") +
+  theme(axis.text.x = element_text(angle = 60, hjust = 1), 
+        plot.title = element_text(hjust = 0.5),
+        legend.title = element_text("Status of COVID-19"))
+  
+
+# plotly for US only states
+ggplotly(usaDat_plot)
+
+```
+
+
+### United States is the 17th most infected country as of March 13th, 2020
+```{r}
+
+# Countries with more than 100 confirmed number of cases except `China`
+hundred_plus_cases <- covid_19 %>% filter((confirmed > 100) 
+                                          & Country.Region != 'China') 
+
+
+# Melt the data to long form
+hundred_plus_cases_countries <- melt(hundred_plus_cases, id=1:2)
+
+
+# Prepare the plot
+plot <- ggplot(hundred_plus_cases_countries, aes(reorder(Country.Region, -value), value, color = variable)) + 
+  geom_point(stat = "identity") +
+  ggtitle("Countried with highest cases after China (100 or more) (As of March 13th 2020)")+
+  xlab("World Country")+ 
+  ylab("Total Cases")+
+  theme(axis.text.x = element_text(angle = 60, hjust = 1), 
+        plot.title = element_text(hjust = 0.5),
+        legend.title = element_text("Status of COVID-19"))
+  
+# plotly for 100 or more cases
+ggplotly(plot)
+
+```
+
+### Rate of surrival with 100 or more cases except China
+```{r}
+
+# Countries with more than 100 confirmed number of cases except `China`
+survival_rate_100plus <- covid_19 %>% filter((confirmed > 100) 
+                                          & Country.Region != 'China') 
+
+
+# Melt the data to long form
+survival_rate_100plus_countries <- melt(survival_rate_100plus, id=1:2)
+
+
+# Prepare the plot
+plot <- ggplot(hundred_plus_cases_countries, aes(reorder(Country.Region, -value), value, color = variable)) + 
+  geom_point(stat = "identity") +
+  ggtitle("Countried with highest cases after China (100 or more) (As of March 13th 2020)")+
+  xlab("World Country")+ 
+  ylab("Total Cases")+
+  theme(axis.text.x = element_text(angle = 60, hjust = 1), 
+        plot.title = element_text(hjust = 0.5),
+        legend.title = element_text("Status of COVID-19"))
+  
+# plotly for 100 or more cases
+ggplotly(plot)
+
+```
