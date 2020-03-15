@@ -17,6 +17,8 @@ knitr::opts_chunk$set(echo=TRUE, warning=FALSE, message=FALSE)
 library(tidyverse)
 library(plotly)
 library(reshape2)
+library(data.table)
+
 
 ```
 
@@ -26,32 +28,72 @@ library(reshape2)
 
 ```{r}
 
-# Read the originalCSV - Data as on March 13th 2020 
+# Read the daily originalCSV
+daily <- read.csv('03-14-2020.csv', stringsAsFactors = FALSE)
+
+# Read the time series data
 covid_recovered <- read.csv('time_series_19-covid-Recovered.csv', stringsAsFactors = FALSE)
 covid_confirmed <- read.csv('time_series_19-covid-Confirmed.csv', stringsAsFactors = FALSE)
 covid_death <- read.csv('time_series_19-covid-Deaths.csv', stringsAsFactors = FALSE)
 
-# Select required data from each time series data frame
-recovered <- covid_recovered[c(1,2,55)]
-confirmed <- covid_confirmed[c(1,2,55)]
-death <- covid_death[c(1,2,55)]
+# The manually cleaned file [states_first_affected.csv]
+states_confirmed_order <- read.csv('states_confirmed_order.csv')
+
+# Sorted States starting with first known cases
+states_confirmed_order_vec <- c(states_confirmed_order)
+
+# Reorder the columns so that we can melt
+daily <- daily[c(1,2,3,7,8,4,5,6)]
+
+# Melt the reordered data
+daily_long <- melt(daily, id=1:5)
+
+# Prepare dataset for US only to get the first known case
+usaDat_time_series <- covid_confirmed %>% filter(Country.Region == 'US') 
+
+```
 
 
-# Remame the column names
-recovered <- recovered %>% rename(recovered = 'X3.12.20')
-confirmed <- confirmed %>% rename(confirmed = 'X3.12.20')
-death <- death %>% rename(death = 'X3.12.20')
+### Sort the US States from the first known confirmed cases
+```{r}
 
+# Initilize empty vector to store states from its first COVID-19 confirmed
+states <- c()
 
-# Merge the dataset
-recovered_confirmed <- merge(recovered, confirmed, by.recovered = 'Country.Region', sort = TRUE)
-covid_19 <- merge(recovered_confirmed, death, by.a = 'Country.Region', sort = TRUE)
+# Melt the data so that we can count the first triggring 1 count instead of 0 count
+usaDat_time_series_long <- melt(usaDat_time_series, id=1:4)
 
+# US states / cities / county
+length <- dim(usaDat_time_series_long)[1]
 
-# Melt the dataset into long form
-covid_19_long <- melt(covid_19, id=1:2)
+# Sort the U.S. State from its first appearances
+for(i in 1:length){
+  if(usaDat_time_series_long$value[i] > 0){
+    positive_state <- usaDat_time_series_long$Province.State[i]
+      if((positive_state %in% states)==FALSE){
+      
+        states[i] <- usaDat_time_series_long$Province.State[i]
+  
+      } 
+  }
+}
 
+# Remove the NA and only get the subset
+us_city_order <- subset(states, (!is.na(states)))
 
+# Convert it into a DF
+states_first_affected <- as.data.frame(us_city_order)
+
+# Write to a file to do manual cleaning. 
+# EG: removing city/county name and convert it into full State name
+write.csv(states_first_affected, "states_first_affected.csv")
+
+```
+
+#### US City/State sorted from first known case
+```{r}
+# May have duplicate States but cleaning it manually
+head(states_first_affected)
 ```
 
 
@@ -59,21 +101,24 @@ covid_19_long <- melt(covid_19, id=1:2)
 ```{r}
 
 # Prepare dataset for US only and plot using ggplotly
-usaDat <- covid_19_long %>% filter(Country.Region == 'US') 
+usaDat <- daily_long %>% filter(Country.Region == 'US') 
 
 # Filter data with more than 0 cases
 usaDat <- usaDat %>% filter(value > 0) 
-  
+
+# Order/Sort the DT using the first known State
+usaDat_order <- setDT(usaDat)[order(match(Province.State, states_confirmed_order$states))]
+
+
 # Prepare the plot
-usaDat_plot <- ggplot(usaDat, aes(reorder(Province.State, -value), value, color = variable)) + 
-  geom_point(stat = "identity") +
-  ggtitle("COVID-19 cases in the US (As of March 13th 2020)") +
-  xlab("U.S. States") + 
-  ylab("Total cases") +
-  theme(axis.text.x = element_text(angle = 60, hjust = 1), 
-        plot.title = element_text(hjust = 0.5),
-        legend.title = element_text("Status of COVID-19"))
-  
+usaDat_plot <- ggplot(usaDat_order, aes(reorder(Province.State, -value), value, color = variable)) + 
+                geom_point(stat = "identity") +
+                ggtitle("COVID-19 cases in the US (As of March 14th 2020)") +
+                xlab("U.S. States ") + 
+                ylab("Total cases") +
+                theme(axis.text.x = element_text(angle = 60, hjust = 1), 
+                      plot.title = element_text(hjust = 0.5),
+                      legend.title = element_text("Status of COVID-19"))
 
 # plotly for US only states
 ggplotly(usaDat_plot)
@@ -81,56 +126,93 @@ ggplotly(usaDat_plot)
 ```
 
 
-### United States is the 17th most infected country as of March 13th, 2020
+### Total Cases in the US
 ```{r}
 
-# Countries with more than 100 confirmed number of cases except `China`
-hundred_plus_cases <- covid_19 %>% filter((confirmed > 100) 
-                                          & Country.Region != 'China') 
+# Prepare dataset for US only and plot using ggplotly
+usaDat <- daily_long %>% filter(Country.Region == 'US') 
+
+# Select the required vector
+case_count <- usaDat[c(6,7)]
+
+# Save the total case count group by cases [confirmed, recovered, death]
+cases_count <- case_count %>% 
+                type.convert(as.is = TRUE) %>% 
+                group_by(variable) %>% 
+                summarise_all(sum, na.rm =TRUE)
+
+```
+
+#### Total confirmed cases:
+```{r}
+
+confirmed_us <- cases_count %>% filter(variable == 'Confirmed')
+print(confirmed_us$value)
+
+```
+
+#### Total recovered cases:
+```{r}
+
+recovered_us <- cases_count %>% filter(variable == 'Recovered')
+print(recovered_us$value)
+
+```
+
+#### Total death cases:
+```{r}
+
+death_us <- cases_count %>% filter(variable == 'Deaths')
+print(death_us$value)
+```
 
 
-# Melt the data to long form
-hundred_plus_cases_countries <- melt(hundred_plus_cases, id=1:2)
+### United States is the 9th most infected country as of March 14th, 2020 
+#### not including China
+```{r}
+
+# List of distinct country of cases except `China`
+except_china <- daily_long %>% filter(Country.Region != 'China') 
+
+# Subset the required values
+except_china_subset <- except_china[c(2,6,7)]
+
+# Aggregrate the total distinct countries
+except_chinaDat <- aggregate(value ~ except_china_subset$Country.Region + variable, except_china_subset, sum)
+
+# Rename the columns with meaningful names for each
+except_china_daily <- rename(except_chinaDat, country = c(1) , type_of_cases=c(2), count_total=c(3))
+
+# show cases if it is more or equal to 100 confirmed cases
+# More or equal to 5 deaths
+# More or equal to 5 recovered
+except_china_daily_100 <- except_china_daily %>% 
+                            filter((type_of_cases == 'Confirmed' & count_total >= 100) |
+                              (type_of_cases == 'Recovered' & count_total >= 5) | 
+                              (type_of_cases == 'Deaths' & count_total >= 5) )
 
 
 # Prepare the plot
-plot <- ggplot(hundred_plus_cases_countries, aes(reorder(Country.Region, -value), value, color = variable)) + 
+plot <- ggplot(except_china_daily_100, aes(reorder(country, -count_total), count_total, color = type_of_cases)) + 
   geom_point(stat = "identity") +
-  ggtitle("Countried with highest cases after China (100 or more) (As of March 13th 2020)")+
+  ggtitle("Countried with highest cases after China (As of March 14th 2020)")+
   xlab("World Country")+ 
   ylab("Total Cases")+
   theme(axis.text.x = element_text(angle = 60, hjust = 1), 
         plot.title = element_text(hjust = 0.5),
         legend.title = element_text("Status of COVID-19"))
   
-# plotly for 100 or more cases
-ggplotly(plot)
-
 ```
 
-### Rate of surrival with 100 or more cases except China
+
+#### Graph with more than 100 confirmed cases
+#### Recovered and Deaths data are 5 or more cases
 ```{r}
 
-# Countries with more than 100 confirmed number of cases except `China`
-survival_rate_100plus <- covid_19 %>% filter((confirmed > 100) 
-                                          & Country.Region != 'China') 
-
-
-# Melt the data to long form
-survival_rate_100plus_countries <- melt(survival_rate_100plus, id=1:2)
-
-
-# Prepare the plot
-plot <- ggplot(hundred_plus_cases_countries, aes(reorder(Country.Region, -value), value, color = variable)) + 
-  geom_point(stat = "identity") +
-  ggtitle("Countried with highest cases after China (100 or more) (As of March 13th 2020)")+
-  xlab("World Country")+ 
-  ylab("Total Cases")+
-  theme(axis.text.x = element_text(angle = 60, hjust = 1), 
-        plot.title = element_text(hjust = 0.5),
-        legend.title = element_text("Status of COVID-19"))
-  
-# plotly for 100 or more cases
+# Graph with more than 100 confirmed cases - queal or more than 5 deaths and recovered
 ggplotly(plot)
 
 ```
+
+
+
