@@ -1,0 +1,279 @@
+---
+title: 'ML & DM - CONTEST #3 @ University of Nebraska-Omaha'
+author: "Bikram Maharjan"
+date: "4/25/2020"
+output: pdf_document
+---
+
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+
+## Predicting the fraud in self-checkout stores
+
+```{r, warning=FALSE, message=FALSE}
+
+# Import required dependencies
+library(dplyr)
+library(xgboost)
+library(Matrix)
+
+```
+
+
+```{r, warning=FALSE, message=FALSE}
+
+# Read Tran and Test dataset
+train <- read.csv('train.csv')
+test <- read.csv('test.csv')
+
+# Check if there are NA values
+sum(is.na(train)) + sum(is.na(test))
+
+```
+- The `NA` sum is 0. We do not have any NULL values.
+
+
+### `Using XGBoost`
+```{r, warning=FALSE, message=FALSE}
+
+# - Convert categorical data into factor
+# - XGBoost only accepts numerical data
+train$credit <- as.factor(train$credit)
+test$credit <- as.factor(test$credit)
+
+```
+
+
+
+#### 'CROSS VALIDATION[CV] STEP'
+```{r, warning=FALSE, message=FALSE}
+
+# - Use Cross Validation with the Train data 
+# - Partation the data into 80/20  
+split_data <- sample(2, nrow(train), replace = T, prob = c(0.8, 0.2))
+
+# - Assign the first partation 
+trainCV <- train[split_data==1,]
+
+# - Assign the second partation
+testCV <- train[split_data==2,]
+
+
+# - One Hot Encoding
+# This will create dummy variable for factor variable and essentially convert our data into numerical format
+trainm <- sparse.model.matrix(trainCV$fraud ~
+                              credit+duration+total+scans+voidedScans+attemptsWoScan+modifiedQuantities-1,
+                              data = trainCV)
+train_label <- trainCV[, "fraud"]
+train_matrix <- xgb.DMatrix(data = as.matrix(trainm), label = train_label)
+
+
+# Same for Test data
+testm <- sparse.model.matrix(testCV$fraud ~
+                              credit+duration+total+scans+voidedScans+attemptsWoScan+modifiedQuantities-1,
+                              data = testCV[,-1])
+test_label <- testCV[, "fraud"]
+test_matrix <- xgb.DMatrix(data = as.matrix(testm), label = test_label)
+
+```
+
+
+#### XGBoost Model Training
+```{r, warning=FALSE, message=FALSE}
+
+# - Number of class 
+# - Parameters 
+nc <- length(unique(train_label))
+
+
+# - eXtreme Gradient Boosting Model
+xgb <- xgboost(data = train_matrix, 
+    label = train_label, 
+    eta = 1,
+    max_depth = 3, 
+    nround=500, 
+    subsample = 1,
+    colsample_bytree = 1,
+    eval_metric = "mlogloss",
+    objective = "multi:softprob",
+    num_class = nc,
+    nthread = 5
+)
+
+# Put the evaluation_log into e to plot the numeric data 
+e <- data.frame(xgb$evaluation_log)
+
+
+```
+
+```{r}
+
+# - Plot the error loss
+plot(e$iter, e$train_mlogloss, col = 'blue')
+
+
+```
+- We can clearly see that the train log loss normalizes around after 125th iteration.
+
+
+```{r, warning=FALSE, message=FALSE}
+
+# - Feature importance
+imp <- xgb.importance(colnames(train_matrix), model = xgb)
+xgb.plot.importance(imp)
+
+```
+- Our most important feature is `scans`.
+- I tried to remove the lowest important variable but it did not improve the score.
+
+
+### Time to predict
+```{r, warning=FALSE, message=FALSE}
+
+# - Prediction & confusion matrix - test data
+p <- predict(xgb, newdata = test_matrix)
+
+pred <- matrix(p, nrow = nc, ncol = length(p)/nc) %>%
+         t() %>%
+         data.frame() %>%
+         mutate(label = test_label, 
+                max_prob = max.col(., "last")-1)
+
+table(Prediction = pred$max_prob, Actual = pred$label)
+
+
+```
+
+- The confusion matrix prediction score:
+```{r, warning=FALSE, message=FALSE}
+
+print(1- ((12+9)/3347))
+
+```
+
+- Looks pretty decent, so using the idea to apply in the final test dataset
+
+##### CV STEPS DONE ####
+
+
+
+#### 'Applying to actual Test dataset'
+
+```{r, warning=FALSE, message=FALSE}
+
+# - `ACTUAL Train set` 
+# - One hot encoding
+# - I removed the `modifiedQuantities` variable because it was less important to the model
+trainm <- sparse.model.matrix(train$fraud ~ 
+                              credit+duration+total+scans+voidedScans+attemptsWoScan-1, 
+                              data = train)
+train_label <- train[, "fraud"]
+
+train_matrix <- xgb.DMatrix(data = as.matrix(trainm), label = train_label)
+
+head(trainm)
+
+```
+
+
+```{r, warning=FALSE, message=FALSE}
+
+# - `ACTUAL Test set` 
+# - One hot encoding
+# - I removed the `modifiedQuantities` variable because it was less important to the model
+testm <- sparse.model.matrix(~credit+duration+total+scans+voidedScans+attemptsWoScan-1, 
+                             data = test[,-1]) 
+test_matrix <- xgb.DMatrix(data = as.matrix(testm))
+
+head(testm)
+
+```
+
+
+```{r, warning=FALSE, message=FALSE, echo=FALSE}
+
+# - Best parameter for XGBoost
+# - score: 0.99053 [Private Leaderboard]
+xgb <- xgboost(data = train_matrix, 
+    label = train_label, 
+    eta = 1,
+    max_depth = 3, 
+    nround=600, 
+    subsample = 1,
+    colsample_bytree = 1,
+    eval_metric = "mlogloss",
+    objective = "multi:softprob",
+    num_class = nc,
+    nthread = 5)
+
+
+# Put the evaluation_log into e to plot the numeric data 
+e <- data.frame(xgb$evaluation_log)
+
+```
+
+
+```{r}
+
+# - Plot the error loss
+plot(e$iter, e$train_mlogloss, col = 'blue')
+
+
+```
+
+#### Plot the important variables
+```{r, warning=FALSE, message=FALSE}
+
+## `Point to note`: I removed the lower important variable but that did not improve my score
+imp <- xgb.importance(colnames(train_matrix), model = xgb)
+
+# Print the important data table
+print(imp)
+
+# Plot the variable of importance
+xgb.plot.importance(imp)
+
+```
+
+```{r, warning=FALSE, message=FALSE}
+
+# Predict the model 
+p <- predict(xgb, newdata=test_matrix)
+pred <- matrix(p, nrow = nc, ncol = length(p)/nc) %>%
+            t() %>%
+            data.frame()
+
+head(pred)
+
+```
+
+
+### Fit the score
+```{r, warning=FALSE, message=FALSE}
+
+
+# After fitting the model and using various level of prediction
+# This is an unbalanced data
+fitted.results <- ifelse(pred$X2 > 0.256666,1,0)
+
+
+```
+
+
+```{r, warning=FALSE, message=FALSE}
+
+# Private Score: 0.99221
+# Public Score: 0.99231
+
+submission <- data.frame(test$id,fitted.results)
+names(submission)[1] <- 'id'
+names(submission)[2] <- 'fraud'
+write.csv(submission,"submission.csv" , row.names=FALSE)
+
+```
+
